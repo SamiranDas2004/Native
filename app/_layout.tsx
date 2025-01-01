@@ -13,6 +13,9 @@ const _layout = () => {
       >
         <Stack.Screen name="accountinfo" options={{ headerShown: true }} />
         <Stack.Screen name="privacyPolicy" options={{ headerShown: true }} />
+        <Stack.Screen name="signin" options={{ headerShown: true }} />
+        <Stack.Screen name="signup" options={{ headerShown: true }} />
+        <Stack.Screen name="Post" options={{ headerShown: true }} />
       </Stack>
     </GestureHandlerRootView>
   );

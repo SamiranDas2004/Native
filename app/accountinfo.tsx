@@ -1,14 +1,16 @@
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   Dimensions,
-  FlatList,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width / 3 - 12;
@@ -17,51 +19,74 @@ type TabType = 'uploads' | 'downloads' | 'liked';
 
 const AccountInfo = () => {
   const [activeTab, setActiveTab] = useState<TabType>('uploads');
+  const [images, setImages] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // Sample data - Replace with your actual data
-  const sampleData = {
-    uploads: [
-      { id: '1', imageUrl: 'https://picsum.photos/200/303', likes: 245 },
-      { id: '2', imageUrl: '/api/placeholder/400/800', likes: 189 },
-      { id: '3', imageUrl: '/api/placeholder/400/800', likes: 321 },
-      { id: '4', imageUrl: '/api/placeholder/400/800', likes: 178 },
-      { id: '5', imageUrl: '/api/placeholder/400/800', likes: 432 },
-      { id: '6', imageUrl: '/api/placeholder/400/800', likes: 156 },
-    ],
-    downloads: [
-      { id: '7', imageUrl: '/api/placeholder/400/800', date: '2024-03-28' },
-      { id: '8', imageUrl: '/api/placeholder/400/800', date: '2024-03-27' },
-      { id: '9', imageUrl: '/api/placeholder/400/800', date: '2024-03-26' },
-      { id: '10', imageUrl: '/api/placeholder/400/800', date: '2024-03-25' },
-    ],
-    liked: [
-      { id: '11', imageUrl: '/api/placeholder/400/800', author: 'John Doe' },
-      { id: '12', imageUrl: '/api/placeholder/400/800', author: 'Jane Smith' },
-      { id: '13', imageUrl: '/api/placeholder/400/800', author: 'Mike Johnson' },
-      { id: '14', imageUrl: '/api/placeholder/400/800', author: 'Sarah Williams' },
-    ],
+  useEffect(() => {
+    if (activeTab === 'uploads') {
+      fetchUploads();
+    } else {
+      setImages([]); // Clear images when switching tabs (optional)
+    }
+  }, [activeTab]);
+
+  const fetchUploads = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Error", "User is not authenticated.");
+        return;
+      }
+  
+      const response = await axios.post(
+        "http://192.168.29.108:8000/post/getPost",
+        {},
+        {
+          headers: {
+            Authorization: `${token}`,
+          },
+        }
+      );
+  
+      if (response.data.posts) {
+        setImages(response.data.posts.map((img: { imageUrl: string }) => img.imageUrl));
+      
+      } else {
+        Alert.alert("Error", "Unexpected response format.");
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        Alert.alert("Error", error.response?.data?.message || "Something went wrong while fetching uploads.");
+      } else {
+        console.error("Unexpected error:", error);
+        Alert.alert("Error", "An unexpected error occurred.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+  
 
-  const renderWallpaperItem = ({ item }: any) => (
-    <TouchableOpacity style={styles.wallpaperItem}>
-      <Image
-        source={{ uri: item.imageUrl }}
-        style={styles.wallpaperImage}
-        resizeMode="cover"
-      />
-      <View style={styles.wallpaperOverlay}>
-        {activeTab === 'uploads' && (
-          <Text style={styles.overlayText}>❤️ {item.likes}</Text>
-        )}
-        {activeTab === 'downloads' && (
-          <Text style={styles.overlayText}>📅 {item.date}</Text>
-        )}
-        {activeTab === 'liked' && (
-          <Text style={styles.overlayText}>👤 {item.author}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  const renderWallpaperItem = ({ item }: { item: string }) => {
+
+    return (
+      <TouchableOpacity style={styles.wallpaperItem}>
+        <Image
+          source={{ uri: item }}
+          style={styles.wallpaperImage}
+          resizeMode="cover"
+        />
+        {/* <View style={styles.wallpaperOverlay}>
+          {activeTab === 'uploads' && (
+            <Text style={styles.overlayText}>❤️ {item.likes}</Text>
+          )}
+        </View> */}
+      </TouchableOpacity>
+    );
+  };
+  
+  
 
   const TabButton = ({ title, isActive, onPress }: any) => (
     <TouchableOpacity
@@ -85,21 +110,6 @@ const AccountInfo = () => {
           <Text style={styles.username}>John Doe</Text>
           <Text style={styles.email}>john.doe@example.com</Text>
         </View>
-
-        <View style={styles.stats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{sampleData.uploads.length}</Text>
-            <Text style={styles.statLabel}>Uploads</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{sampleData.downloads.length}</Text>
-            <Text style={styles.statLabel}>Downloads</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{sampleData.liked.length}</Text>
-            <Text style={styles.statLabel}>Liked</Text>
-          </View>
-        </View>
       </View>
 
       {/* Tab Navigation */}
@@ -122,14 +132,20 @@ const AccountInfo = () => {
       </View>
 
       {/* Wallpaper Grid */}
-      <FlatList
-        data={sampleData[activeTab]}
+      {activeTab==="uploads" ? (
+        
+        <FlatList
+        data={images}
         renderItem={renderWallpaperItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.toString()} 
         numColumns={3}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.wallpaperGrid}
       />
+      ) : (
+        <Text style={styles.loadingText}>Loading...</Text>
+      
+      )}
     </View>
   );
 };
@@ -137,12 +153,12 @@ const AccountInfo = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff', // Light background color
+    backgroundColor: '#fff',
   },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#f9f9f9', // Light header background
+    backgroundColor: '#f9f9f9',
   },
   profileInfo: {
     alignItems: 'center',
@@ -152,14 +168,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#dcdcdc', // Lighter background for profile image
+    backgroundColor: '#dcdcdc',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
   profileInitial: {
     fontSize: 32,
-    color: '#333', // Dark text color for contrast
+    color: '#333',
     fontWeight: 'bold',
   },
   username: {
@@ -170,24 +186,7 @@ const styles = StyleSheet.create({
   },
   email: {
     fontSize: 14,
-    color: '#555', // Lighter color for email
-  },
-  stats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333', // Dark text for numbers
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#555', // Lighter text for labels
+    color: '#555',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -202,14 +201,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#333', // Dark underline for active tab
+    borderBottomColor: '#333',
   },
   tabButtonText: {
     fontSize: 16,
-    color: '#333', // Dark text for tab buttons
+    color: '#333',
   },
   activeTabButtonText: {
-    color: '#333', // Keep active tab text dark
+    color: '#333',
   },
   wallpaperGrid: {
     padding: 4,
@@ -231,11 +230,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)', // Lighter overlay background
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
   overlayText: {
-    color: '#333', 
+    color: '#333',
     fontSize: 12,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
+    color: '#555',
   },
 });
 
