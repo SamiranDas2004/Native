@@ -21,72 +21,124 @@ const AccountInfo = () => {
   const [activeTab, setActiveTab] = useState<TabType>('uploads');
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    const getToken = async () => {
+      const storedToken = await AsyncStorage.getItem('userToken');
+      if (!storedToken) {
+        Alert.alert('Error', 'User is not authenticated.');
+      }
+      setToken(storedToken);
+    };
+    getToken();
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
     if (activeTab === 'uploads') {
       fetchUploads();
-    } else {
-      setImages([]); // Clear images when switching tabs (optional)
+    } else if (activeTab === 'downloads') {
+      fetchDownloads();
     }
-  }, [activeTab]);
+    else if (activeTab === 'liked') {
+      fetchLikedByMe();
+    } else {
+      setImages([]); // Clear images when switching tabs
+    }
+  }, [activeTab, token]);
 
   const fetchUploads = async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem("userToken");
-      if (!token) {
-        Alert.alert("Error", "User is not authenticated.");
-        return;
-      }
-  
       const response = await axios.post(
-        "http://192.168.29.108:8000/post/getPost",
+        'http://192.168.29.108:8000/post/getPost',
         {},
-        {
-          headers: {
-            Authorization: `${token}`,
-          },
-        }
+        { headers: { Authorization: `${token}` } }
       );
-  
+
       if (response.data.posts) {
         setImages(response.data.posts.map((img: { imageUrl: string }) => img.imageUrl));
-      
       } else {
-        Alert.alert("Error", "Unexpected response format.");
+        Alert.alert('Error', 'Unexpected response format.');
       }
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        Alert.alert("Error", error.response?.data?.message || "Something went wrong while fetching uploads.");
-      } else {
-        console.error("Unexpected error:", error);
-        Alert.alert("Error", "An unexpected error occurred.");
-      }
+      Alert.alert(
+        'Error',
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to fetch uploads.'
+          : 'An unexpected error occurred.'
+      );
     } finally {
       setLoading(false);
     }
   };
-  
 
-  const renderWallpaperItem = ({ item }: { item: string }) => {
+  const fetchDownloads = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        'http://192.168.29.108:8000/post/getdownload',
+        {},
+        { headers: { Authorization: `${token}` } }
+      );
+console.log(response.data);
 
-    return (
-      <TouchableOpacity style={styles.wallpaperItem}>
-        <Image
-          source={{ uri: item }}
-          style={styles.wallpaperImage}
-          resizeMode="cover"
-        />
-        {/* <View style={styles.wallpaperOverlay}>
-          {activeTab === 'uploads' && (
-            <Text style={styles.overlayText}>❤️ {item.likes}</Text>
-          )}
-        </View> */}
-      </TouchableOpacity>
-    );
+      if (response.data.posts) {
+        setImages(response.data.posts.map((img: { imageUrl: string }) => img.imageUrl));
+      } else {
+        Alert.alert('Error', 'Unexpected response format.');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to fetch downloads.'
+          : 'An unexpected error occurred.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  
+
+
+  const fetchLikedByMe=async()=>{
+    setLoading(true)
+    try {
+      const response = await axios.post(
+        'http://192.168.29.108:8000/post/getLikedByYou',
+        {},
+        { headers: { Authorization: `${token}` } }
+      );
+console.log(response.data);
+
+      if (response.data.posts) {
+        setImages(response.data.posts.map((img: { imageUrl: string }) => img.imageUrl));
+      } else {
+        Alert.alert('Error', 'Unexpected response format.');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to fetch downloads.'
+          : 'An unexpected error occurred.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const renderWallpaperItem = ({ item }: { item: string }) => (
+    <TouchableOpacity style={styles.wallpaperItem}>
+      <Image
+        source={{ uri: item }}
+        style={styles.wallpaperImage}
+        resizeMode="cover"
+      />
+    </TouchableOpacity>
+  );
 
   const TabButton = ({ title, isActive, onPress }: any) => (
     <TouchableOpacity
@@ -101,7 +153,6 @@ const AccountInfo = () => {
 
   return (
     <View style={styles.container}>
-      {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.profileInfo}>
           <View style={styles.profileImage}>
@@ -112,7 +163,6 @@ const AccountInfo = () => {
         </View>
       </View>
 
-      {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <TabButton
           title="Uploads"
@@ -131,24 +181,22 @@ const AccountInfo = () => {
         />
       </View>
 
-      {/* Wallpaper Grid */}
-      {activeTab==="uploads" ? (
-        
-        <FlatList
-        data={images}
-        renderItem={renderWallpaperItem}
-        keyExtractor={(item, index) => item.toString()} 
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.wallpaperGrid}
-      />
-      ) : (
+      {loading ? (
         <Text style={styles.loadingText}>Loading...</Text>
-      
+      ) : (
+        <FlatList
+          data={images}
+          renderItem={renderWallpaperItem}
+          keyExtractor={(item, index) => `${item}-${index}`}
+          numColumns={3}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.wallpaperGrid}
+        />
       )}
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

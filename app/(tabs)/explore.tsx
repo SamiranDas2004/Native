@@ -1,24 +1,29 @@
 import { View, Text, Image, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import DownloadPage from '@/components/DownloadPage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import axios from 'axios';
+
+interface Post {
+  likedBy: any;
+  _id: string;
+  title: string;
+  imageUrl: string;
+  createdBy: string;
+  createdAt: string;
+  likes: number;
+}
 
 interface ImageCardProps {
   title: string;
   imageUrl: string;
   onPress: () => void;
+  likes: number;
+  // onLike: () => void;
 }
 
-interface ImageCardData {
-  id: number;
-  title: string;
-  imageUrl: string;
-  createdBy: string;
-  postedDate: string;
-}
-
-const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -50,130 +55,81 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress }) => {
       />
       <View style={{ padding: 10 }}>
         <Text style={{ fontSize: 16, fontWeight: '500' }}>{title}</Text>
+        <TouchableOpacity 
+         
+          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}
+        >
+          <FontAwesome name="heart" size={16} color="#FF4444" />
+          <Text style={{ marginLeft: 5, color: '#666' }}>{likes}</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 };
-
+   
 const Explore: React.FC = () => {
   const [openPage, setOpenPage] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [createdBy, setCreatedBy] = useState<string | null>(null);
   const [postedDate, setPostedDate] = useState<string | null>(null);
+  const [id, setId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [images, setImages] = useState<Post[]>([]);
 
-  const handleToggle = () => {
-    setOpenPage(!openPage);
-  };
+  const handleToggle = () => setOpenPage(!openPage);
 
-  const handleCardPress = (imageUrl: string, title: string, createdBy: string, postedDate: string) => {
+  // const handleLike = async (postId: string) => {
+  //   try {
+  //     await axios.post(`http://192.168.29.108:8000/post/like/${postId}`);
+  //     setImages(prevImages =>
+  //       prevImages.map(image =>
+  //         image._id === postId
+  //           ? { ...image, likes: (image.likes || 0) + 1 }
+  //           : image
+  //       )
+  //     );
+  //   } catch (error) {
+  //     console.error("Error liking post:", error);
+  //   }
+  // };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get<{ posts: Post[] }>("http://192.168.29.108:8000/post/getall");
+        if (response.data?.posts) {
+          const postsWithLikes = response.data.posts.map(post => ({
+            ...post,
+            likes: post.likedBy.length || 0
+          }));
+          setImages(postsWithLikes);
+        }
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleCardPress = (imageUrl: string, title: string, createdBy: string, postedDate: string, id: string) => {
     setSelectedImage(imageUrl);
     setTitle(title);
     setCreatedBy(createdBy);
     setPostedDate(postedDate);
     setOpenPage(true);
+    setId(id);
   };
 
-  const imageCards: ImageCardData[] = [
-    {
-      id: 1,
-      title: 'Nature View',
-      imageUrl: 'https://res.cloudinary.com/dfjfjovut/image/upload/v1733767260/iaxgwdk2nprvc6qh6hiz.png',
-      createdBy: "Samiran",
-      postedDate: "20-12-2024",
-    },
-    {
-      id: 2,
-      title: 'City Landscape',
-      imageUrl: 'https://picsum.photos/200/301',
-      createdBy: "John Doe",
-      postedDate: "15-11-2024",
-    },
-    {
-      id: 3,
-      title: 'Mountain Peak',
-      imageUrl: 'https://picsum.photos/200/302',
-      createdBy: "Alice Smith",
-      postedDate: "10-10-2024",
-    },
-    {
-      id: 4,
-      title: 'Ocean Waves',
-      imageUrl: 'https://picsum.photos/200/303',
-      createdBy: "Bob Brown",
-      postedDate: "05-09-2024",
-    },
-    {
-      id: 5,
-      title: 'Forest Path',
-      imageUrl: 'https://picsum.photos/200/304',
-      createdBy: "Charlie Johnson",
-      postedDate: "01-08-2024",
-    },
-    {
-      id: 6,
-      title: 'Desert Sunset',
-      imageUrl: 'https://picsum.photos/200/305',
-      createdBy: "Diana Lee",
-      postedDate: "25-07-2024",
-    },
-    {
-      id: 7,
-      title: 'Lakeside',
-      imageUrl: 'https://picsum.photos/200/306',
-      createdBy: "Evan Taylor",
-      postedDate: "20-06-2024",
-    },
-    {
-      id: 8,
-      title: 'Snowy Mountains',
-      imageUrl: 'https://picsum.photos/200/307',
-      createdBy: "Fiona Martinez",
-      postedDate: "15-05-2024",
-    },
-    {
-      id: 9,
-      title: 'Urban Nightlife',
-      imageUrl: 'https://picsum.photos/200/308',
-      createdBy: "George Wilson",
-      postedDate: "10-04-2024",
-    },
-    {
-      id: 10,
-      title: 'Golden Beach',
-      imageUrl: 'https://picsum.photos/200/309',
-      createdBy: "Hannah Clark",
-      postedDate: "05-03-2024",
-    },
-    {
-      id: 11,
-      title: 'Wildlife Safari',
-      imageUrl: 'https://picsum.photos/200/310',
-      createdBy: "Ian Moore",
-      postedDate: "01-02-2024",
-    },
-    {
-      id: 12,
-      title: 'Autumn Forest',
-      imageUrl: 'https://picsum.photos/200/311',
-      createdBy: "Jane Davis",
-      postedDate: "25-01-2024",
-    },
-  ];
-
-  // Filter images based on search query
-  const filteredImageCards = useMemo(() => {
-    return imageCards.filter((card) =>
-      card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      card.createdBy.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredImages = useMemo(() => {
+    return images.filter(card =>
+      card.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [images, searchQuery]);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
-        {/* Search Bar */}
         <View style={{
           padding: 10,
           backgroundColor: 'white',
@@ -242,12 +198,14 @@ const Explore: React.FC = () => {
               justifyContent: 'flex-start',
             }}
           >
-            {filteredImageCards.map((card) => (
+            {filteredImages.map((card) => (
               <ImageCard
-                key={card.id}
+                key={card._id}
                 title={card.title}
                 imageUrl={card.imageUrl}
-                onPress={() => handleCardPress(card.imageUrl, card.title, card.createdBy, card.postedDate)}
+                likes={card.likes}
+                onPress={() => handleCardPress(card.imageUrl, card.title, card.createdBy, card.createdAt, card._id)}
+                
               />
             ))}
           </View>
@@ -259,6 +217,7 @@ const Explore: React.FC = () => {
             createdBy={createdBy}
             postedDate={postedDate}
             imageUrl={selectedImage}
+            id={id}
           />
         )}
       </View>
