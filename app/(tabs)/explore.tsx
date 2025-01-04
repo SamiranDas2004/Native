@@ -1,9 +1,15 @@
-import { View, Text, Image, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Dimensions } from 'react-native';
 import React, { useState, useMemo, useEffect } from 'react';
 import DownloadPage from '@/components/DownloadPage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import axios from 'axios';
+import MasonryList from '@react-native-seoul/masonry-list';
+
+const { width } = Dimensions.get('window');
+const numColumns = 2;
+const gap = 12;
+const cardWidth = (width - gap * (numColumns + 1)) / numColumns;
 
 interface Post {
   likedBy: any;
@@ -13,6 +19,7 @@ interface Post {
   createdBy: string;
   createdAt: string;
   likes: number;
+  height?: number;
 }
 
 interface ImageCardProps {
@@ -20,26 +27,26 @@ interface ImageCardProps {
   imageUrl: string;
   onPress: () => void;
   likes: number;
-  // onLike: () => void;
+  height: number;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes, height }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
-        width: '45%',
-        marginHorizontal: '2.5%',
-        marginVertical: 10,
+        width: cardWidth,
+        marginBottom: gap,
         backgroundColor: 'white',
-        borderRadius: 10,
+        borderRadius: 16,
+        overflow: 'hidden',
         shadowColor: '#000',
         shadowOffset: {
           width: 0,
           height: 2,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
         elevation: 5,
       }}
     >
@@ -47,26 +54,47 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes }
         source={{ uri: imageUrl }}
         style={{
           width: '100%',
-          height: 150,
-          borderTopLeftRadius: 10,
-          borderTopRightRadius: 10,
+          height: height,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
         }}
         resizeMode="cover"
       />
-      <View style={{ padding: 10 }}>
-        <Text style={{ fontSize: 16, fontWeight: '500' }}>{title}</Text>
-        <TouchableOpacity 
-         
-          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}
+      <View 
+        style={{ 
+          // padding: 12,
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTopWidth: 1,
+          borderColor: 'rgba(0,0,0,0.05)',
+        }}
+      >
+        {/* <Text 
+          numberOfLines={1} 
+          style={{ 
+            fontSize: 14, 
+            fontWeight: '600',
+            flex: 1,
+            marginRight: 8,
+          }}
         >
-          <FontAwesome name="heart" size={16} color="#FF4444" />
-          <Text style={{ marginLeft: 5, color: '#666' }}>{likes}</Text>
-        </TouchableOpacity>
+          {title}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <FontAwesome name="heart" size={14} color="#FF4444" />
+          <Text style={{ marginLeft: 4, color: '#666', fontSize: 12 }}>{likes}</Text>
+        </View> */}
       </View>
     </TouchableOpacity>
   );
 };
-   
+
 const Explore: React.FC = () => {
   const [openPage, setOpenPage] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -79,31 +107,27 @@ const Explore: React.FC = () => {
 
   const handleToggle = () => setOpenPage(!openPage);
 
-  // const handleLike = async (postId: string) => {
-  //   try {
-  //     await axios.post(`http://192.168.29.108:8000/post/like/${postId}`);
-  //     setImages(prevImages =>
-  //       prevImages.map(image =>
-  //         image._id === postId
-  //           ? { ...image, likes: (image.likes || 0) + 1 }
-  //           : image
-  //       )
-  //     );
-  //   } catch (error) {
-  //     console.error("Error liking post:", error);
-  //   }
-  // };
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
 
-  useEffect(() => {
+   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await axios.get<{ posts: Post[] }>("http://192.168.29.108:8000/post/getall");
         if (response.data?.posts) {
-          const postsWithLikes = response.data.posts.map(post => ({
+          const postsWithDimensions = response.data.posts.map(post => ({
             ...post,
-            likes: post.likedBy.length || 0
+            height: Math.floor(Math.random() * (320 - 200 + 1) + 200),
           }));
-          setImages(postsWithLikes);
+          // Shuffle the array before setting it to state
+          const randomizedPosts = shuffleArray(postsWithDimensions);
+          setImages(randomizedPosts);
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -127,11 +151,23 @@ const Explore: React.FC = () => {
     );
   }, [images, searchQuery]);
 
+  const renderItem = ({ item, i }: { item: Post; i: number }) => (
+    <ImageCard
+      key={item._id}
+      title={item.title}
+      imageUrl={item.imageUrl}
+      likes={item.likes}
+      height={item.height || 250}
+      onPress={() => handleCardPress(item.imageUrl, item.title, item.createdBy, item.createdAt, item._id)}
+    />
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <View style={{ flex: 1 }}>
+        {/* Search Bar */}
         <View style={{
-          padding: 10,
+          padding: 12,
           backgroundColor: 'white',
           borderBottomWidth: 1,
           borderBottomColor: '#eee',
@@ -140,8 +176,8 @@ const Explore: React.FC = () => {
             flexDirection: 'row',
             alignItems: 'center',
             backgroundColor: '#f5f5f5',
-            borderRadius: 10,
-            paddingHorizontal: 10,
+            borderRadius: 12,
+            paddingHorizontal: 12,
           }}>
             <FontAwesome name="search" size={20} color="#666" style={{ marginRight: 10 }} />
             <TextInput
@@ -150,7 +186,7 @@ const Explore: React.FC = () => {
               onChangeText={setSearchQuery}
               style={{
                 flex: 1,
-                paddingVertical: 10,
+                paddingVertical: 12,
                 fontSize: 16,
               }}
             />
@@ -162,6 +198,7 @@ const Explore: React.FC = () => {
           </View>
         </View>
 
+        {/* Close Button */}
         {openPage && (
           <TouchableOpacity 
             onPress={handleToggle}
@@ -171,15 +208,15 @@ const Explore: React.FC = () => {
               right: 20,
               zIndex: 1,
               backgroundColor: 'white',
-              padding: 8,
-              borderRadius: 20,
+              padding: 12,
+              borderRadius: 24,
               shadowColor: '#000',
               shadowOffset: {
                 width: 0,
                 height: 2,
               },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
               elevation: 5,
             }}
           >
@@ -187,30 +224,20 @@ const Explore: React.FC = () => {
           </TouchableOpacity>
         )}
         
-        <ScrollView 
-          contentContainerStyle={{ padding: 10 }}
-          showsVerticalScrollIndicator={false} 
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              justifyContent: 'flex-start',
-            }}
-          >
-            {filteredImages.map((card) => (
-              <ImageCard
-                key={card._id}
-                title={card.title}
-                imageUrl={card.imageUrl}
-                likes={card.likes}
-                onPress={() => handleCardPress(card.imageUrl, card.title, card.createdBy, card.createdAt, card._id)}
-                
-              />
-            ))}
-          </View>
-        </ScrollView>
+        {/* Masonry Grid */}
+        <MasonryList
+          data={filteredImages}
+          keyExtractor={(item: Post) => item._id}
+          numColumns={2}
+          contentContainerStyle={{
+            paddingHorizontal: gap,
+            paddingTop: gap,
+          }}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
         
+        {/* Download Page */}
         {openPage && selectedImage && title && createdBy && postedDate && (
           <DownloadPage
             title={title}
