@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import * as ImagePicker from "expo-image-picker";
+import { FontAwesome } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width / 3 - 12;
 
@@ -22,18 +23,38 @@ const AccountInfo = () => {
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(null);
-
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   useEffect(() => {
     const getToken = async () => {
       const storedToken = await AsyncStorage.getItem('userToken');
       if (!storedToken) {
         Alert.alert('Error', 'User is not authenticated.');
+        return;
       }
       setToken(storedToken);
     };
     getToken();
   }, []);
-
+  
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (!token) return;
+  
+      try {
+        const response = await axios.post(
+          'http://192.168.29.108:8000/post/getProfilePicture',
+          {},
+          { headers: { Authorization: `${token}` } }
+        );
+        setProfileImage(response.data.imageUrl);
+        console.log(response.data.imageUrl);
+      } catch (error) {
+        console.error('Failed to fetch profile image:', error);
+      }
+    };
+    fetchProfileImage();
+  }, [token]);
+  
   useEffect(() => {
     if (!token) return;
 
@@ -57,6 +78,7 @@ const AccountInfo = () => {
         {},
         { headers: { Authorization: `${token}` } }
       );
+      
 
       if (response.data.posts) {
         setImages(response.data.posts.map((img: { imageUrl: string }) => img.imageUrl));
@@ -151,13 +173,84 @@ console.log(response.data);
     </TouchableOpacity>
   );
 
+
+  const handleProfileImageUpload = async () => {
+    try {
+      // Request permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Denied', 'You need to grant gallery permissions to upload a profile picture.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets[0].uri) {
+        // Create form data for upload
+        const formData = new FormData();
+        formData.append('imageUrl', {
+          uri: result.assets[0].uri,
+          type: 'image/jpeg',
+          name: 'profile-image.jpg',
+        }as any);
+
+        // Upload to server
+        const response = await axios.post(
+          'http://192.168.29.108:8000/users/updatePhhoto',
+          formData,
+          {
+            headers: {
+              Authorization: `${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        if (response.data.success) {
+          setProfileImage(result.assets[0].uri);
+          Alert.alert('Success', 'Profile image updated successfully');
+        }
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to upload profile image.'
+          : 'An unexpected error occurred.'
+      );
+    }
+  };
+
   return (
-    <View style={styles.container}>
+   <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.profileInfo}>
-          <View style={styles.profileImage}>
-            <Text style={styles.profileInitial}>J</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={handleProfileImageUpload}
+          >
+            {profileImage ? (
+              <Image 
+                source={{ uri: profileImage }} 
+                style={styles.profileImage} 
+              />
+            ) : (
+              <View style={styles.profileImage}>
+                <Text style={styles.profileInitial}>J</Text>
+              </View>
+            )}
+            <View style={styles.cameraIconContainer}>
+            <FontAwesome name="camera" size={20} color="#fff" />
+
+            </View>
+          </TouchableOpacity>
           <Text style={styles.username}>John Doe</Text>
           <Text style={styles.email}>john.doe@example.com</Text>
         </View>
@@ -212,6 +305,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  profileImageContainer: {
+    position: 'relative',
+    marginBottom: 10,
+  },
   profileImage: {
     width: 80,
     height: 80,
@@ -219,7 +316,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#dcdcdc',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#333',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   profileInitial: {
     fontSize: 32,

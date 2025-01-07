@@ -40,7 +40,7 @@ export default function Post() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [2,3],
       quality: 1,
     });
 
@@ -96,10 +96,8 @@ export default function Post() {
       console.error("Error uploading the post:", error);
   
       if (axios.isAxiosError(error) && error.response) {
-        // Axios error with response
         Alert.alert("Error", `Failed to create post: ${error.response.data.message || "Unknown error"}`);
       } else {
-        // Other errors
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
     } finally {

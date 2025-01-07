@@ -22,7 +22,7 @@ const AccountInfo = () => {
     <ScrollView>
     <SafeAreaView style={styles.container}>
       <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809' }}
+        // source={{ uri: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809' }}
         style={styles.backgroundImage}
         resizeMode="cover"
       >
@@ -30,13 +30,7 @@ const AccountInfo = () => {
           colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
           style={styles.gradient}
         >
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Ionicons name="leaf-outline" size={40} color="#fff" />
-            </View>
-            <Text style={styles.brandName}>Naturify</Text>
-          </View>
+        
 
           {/* Header Section */}
           <View style={styles.header}>
