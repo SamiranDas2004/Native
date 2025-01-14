@@ -42,7 +42,7 @@ const AccountInfo = () => {
   
       try {
         const response = await axios.post(
-          'http://192.168.29.108:8000/post/getProfilePicture',
+          'http://192.168.0.108:8000/post/getProfilePicture',
           {},
           { headers: { Authorization: `${token}` } }
         );
@@ -74,7 +74,7 @@ const AccountInfo = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        'http://192.168.29.108:8000/post/getPost',
+        'http://192.168.0.108:8000/post/getPost',
         {},
         { headers: { Authorization: `${token}` } }
       );
@@ -101,7 +101,7 @@ const AccountInfo = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        'http://192.168.29.108:8000/post/getdownload',
+        'http://192.168.0.108:8000/post/getdownload',
         {},
         { headers: { Authorization: `${token}` } }
       );
@@ -129,7 +129,7 @@ console.log(response.data);
     setLoading(true)
     try {
       const response = await axios.post(
-        'http://192.168.29.108:8000/post/getLikedByYou',
+        'http://192.168.0.108:8000/post/getLikedByYou',
         {},
         { headers: { Authorization: `${token}` } }
       );
@@ -203,7 +203,7 @@ console.log(response.data);
 
         // Upload to server
         const response = await axios.post(
-          'http://192.168.29.108:8000/users/updatePhhoto',
+          'http://192.168.0.108:8000/users/updatePhhoto',
           formData,
           {
             headers: {

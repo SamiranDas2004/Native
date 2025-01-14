@@ -70,13 +70,13 @@ const WallpaperApp = () => {
       try {
         const token = await AsyncStorage.getItem("userToken");
         if (token) {
-          const response = await axios.get("http://192.168.29.108:8000/users/checkArtistSelection", {
+          const response = await axios.get("http://192.168.0.108:8000/users/checkArtistSelection", {
             headers: {
               Authorization: `${token}`,
             },
           });
 
-          console.log(response.data);
+          // console.log(response.data);
           
           if (response.data) {
             setIsAlredySelected(true);
@@ -106,7 +106,7 @@ const WallpaperApp = () => {
         }
 
         const response = await axios.get<{ data: Post[] }>(
-          "http://192.168.29.108:8000/users/getArtist",
+          "http://192.168.0.108:8000/users/getArtist",
           {
             headers: {
               Authorization: `${token}`,
@@ -167,10 +167,10 @@ const WallpaperApp = () => {
             Alert.alert("Error", "User is not authenticated.");
             return;
           }
-console.log(selectedIds);
+// console.log(selectedIds);
 
           const response = await axios.post(
-            "http://192.168.29.108:8000/users/addArtist",
+            "http://192.168.0.108:8000/users/addArtist",
             { idsOfArtist: selectedIds },
             {
               headers: {
@@ -186,14 +186,14 @@ console.log(selectedIds);
           }
 
 
-          const response2 = await axios.get("http://192.168.29.108:8000/users/checkArtistSelection", {
+          const response2 = await axios.get("http://192.168.0.108:8000/users/checkArtistSelection", {
             headers: {
               Authorization: `${token}`,
             },
           });
 
         
-          console.log("data",response2);
+         
           
           if (response2.data) {
             setIsAlredySelected(true);

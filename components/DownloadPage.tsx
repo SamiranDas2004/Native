@@ -32,7 +32,7 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ imageUrl, title, createdBy,
         }
 
         const response = await axios.post(
-          "http://192.168.29.108:8000/post/likeStatus",
+          "http://192.168.0.108:8000/post/likeStatus",
           { postId: id },
           { headers: { Authorization: `${token}` } }
         );
@@ -55,7 +55,7 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ imageUrl, title, createdBy,
       }
 
       const response = await axios.post(
-        "http://192.168.29.108:8000/post/toggleLike",
+        "http://192.168.0.108:8000/post/toggleLike",
         { postId: id },
         { headers: { Authorization: `${token}` } }
       );
@@ -92,7 +92,7 @@ const DownloadPage: React.FC<DownloadPageProps> = ({ imageUrl, title, createdBy,
 
       Alert.alert("Success", "Image saved to your gallery!");
       await axios.post(
-        "http://192.168.29.108:8000/post/download",
+        "http://192.168.0.108:8000/post/download",
         { postId: id },
         { headers: { Authorization: `${token}` } }
       );

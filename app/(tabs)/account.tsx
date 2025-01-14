@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,97 +9,151 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import React from 'react';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { jwtDecode } from 'jwt-decode';
 
 const { width, height } = Dimensions.get('window');
 
+interface DecodedToken {
+  exp: number;
+}
+
 const AccountInfo = () => {
+  const [loginStatus, setLoginStatus] = useState('Sign In');
+  const [isValidToken, setIsValidToken] = useState(false);
+
+  const checkTokenExpiration = (token: string): boolean => {
+    try {
+      const decodedToken = jwtDecode(token) as DecodedToken;
+      const currentTime = Date.now() / 1000;
+      return decodedToken.exp > currentTime;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return false;
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      setLoginStatus('Sign In');
+      setIsValidToken(false);
+      router.replace('/signin');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (token && checkTokenExpiration(token)) {
+          setLoginStatus('Sign Out');
+          setIsValidToken(true);
+        } else {
+          await AsyncStorage.removeItem('userToken');
+          setLoginStatus('Sign In');
+          setIsValidToken(false);
+        }
+      } catch (error) {
+        console.error('Error checking token:', error);
+        setLoginStatus('Sign In');
+        setIsValidToken(false);
+      }
+    };
+
+    checkToken();
+  }, []);
+
   return (
     <ScrollView>
-    <SafeAreaView style={styles.container}>
-      <ImageBackground
-        // source={{ uri: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809' }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
-          style={styles.gradient}
+      <SafeAreaView style={styles.container}>
+        <ImageBackground
+          style={styles.backgroundImage}
+          resizeMode="cover"
         >
-        
+          <LinearGradient
+            colors={['#000000', '#000000']}
+            style={styles.gradient}
+          >
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                {isValidToken ? 'Welcome Back' : 'Hello, Guest'}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {isValidToken
+                  ? 'Continue your journey to a better tomorrow'
+                  : 'Start your journey to a better tomorrow'}
+              </Text>
+            </View>
 
-          {/* Header Section */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Welcome Back</Text>
-            <Text style={styles.headerSubtitle}>
-              Start your journey to a better tomorrow
-            </Text>
-          </View>
-
-          {/* Buttons Container */}
-          <View style={styles.buttonContainer}>
-            <Link href="../signin" asChild>
-              <TouchableOpacity style={styles.primaryButton}>
-                <LinearGradient
-                  colors={['#4CAF50', '#2E7D32']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientButton}
+            <View style={styles.buttonContainer}>
+              {isValidToken ? (
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={handleSignOut}
                 >
-                  <Text style={styles.buttonText}>Sign In</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </Link>
+                  <Text style={styles.buttonText}>Sign Out</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <Link href="../signin" asChild>
+                    <TouchableOpacity style={styles.primaryButton}>
+                      <Text style={styles.buttonText}>{loginStatus}</Text>
+                    </TouchableOpacity>
+                  </Link>
 
-            <Link href="../signup" asChild>
-              <TouchableOpacity style={styles.secondaryButton}>
-                <BlurView intensity={80} style={styles.blurButton}>
-                  <Text style={styles.secondaryButtonText}>Create Account</Text>
-                </BlurView>
-              </TouchableOpacity>
-            </Link>
-          </View>
+                  <Link href="../signup" asChild>
+                    <TouchableOpacity style={styles.secondaryButton}>
+                      <Text style={styles.secondaryButtonText}>Create Account</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </>
+              )}
+            </View>
 
-          {/* About Section */}
-          <View style={styles.aboutContainer}>
-            <BlurView intensity={30} style={styles.aboutBlurContainer}>
-              <Text style={styles.aboutTitle}>Quick Links</Text>
-              <View style={styles.linkContainer}>
-                <Link href="../accountinfo" asChild>
-                  <TouchableOpacity style={styles.linkButton}>
-                    <Ionicons name="information-circle-outline" size={20} color="#fff" />
-                    <Text style={styles.link}>Account Info</Text>
-                  </TouchableOpacity>
-                </Link>
-                
-                <View style={styles.divider} />
-                
-                <Link href="../privacyPolicy" asChild>
-                  <TouchableOpacity style={styles.linkButton}>
-                    <Ionicons name="shield-checkmark-outline" size={20} color="#fff" />
-                    <Text style={styles.link}>Privacy Policy</Text>
-                  </TouchableOpacity>
-                </Link>
-                
-                <View style={styles.divider} />
-                
-                <Link href="../Post" asChild>
-                  <TouchableOpacity style={styles.linkButton}>
-                    <Ionicons name="add-circle-outline" size={20} color="#fff" />
-                    <Text style={styles.link}>Post</Text>
-                  </TouchableOpacity>
-                </Link>
+            <View style={styles.aboutContainer}>
+              <View style={styles.aboutBlurContainer}>
+                <Text style={styles.aboutTitle}>Quick Links</Text>
+                <View style={styles.linkContainer}>
+                  <Link href="../accountinfo" asChild>
+                    <TouchableOpacity style={styles.linkButton}>
+                      <Ionicons name="information-circle-outline" size={20} color="#fff" />
+                      <Text style={styles.link}>Account Info</Text>
+                    </TouchableOpacity>
+                  </Link>
+
+                  <View style={styles.divider} />
+
+                  <Link href="../pay" asChild>
+                    <TouchableOpacity style={styles.linkButton}>
+                      <Ionicons name="shield-checkmark-outline" size={20} color="#fff" />
+                      <Text style={styles.link}>Pay</Text>
+                    </TouchableOpacity>
+                  </Link>
+
+                  <View style={styles.divider} />
+
+                  {isValidToken && (
+                    <Link href="../Post" asChild>
+                      <TouchableOpacity style={styles.linkButton}>
+                        <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                        <Text style={styles.link}>Post</Text>
+                      </TouchableOpacity>
+                    </Link>
+                  )}
+                </View>
               </View>
-            </BlurView>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
-    </SafeAreaView>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </SafeAreaView>
     </ScrollView>
   );
 };
@@ -115,25 +170,7 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
     padding: 24,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: height * 0.05,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  brandName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    letterSpacing: 1,
+    backgroundColor: '#000',
   },
   header: {
     marginTop: height * 0.08,
@@ -144,9 +181,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 12,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   headerSubtitle: {
     fontSize: 18,
@@ -163,22 +197,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 56,
     borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  gradientButton: {
-    width: '100%',
-    height: '100%',
+    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -186,14 +205,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 56,
     borderRadius: 16,
-    overflow: 'hidden',
-  },
-  blurButton: {
-    flex: 1,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   buttonText: {
     fontSize: 18,
@@ -203,7 +217,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
   },
   aboutContainer: {
     marginTop: height * 0.1,
@@ -212,6 +226,7 @@ const styles = StyleSheet.create({
   },
   aboutBlurContainer: {
     padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   aboutTitle: {
     fontSize: 20,

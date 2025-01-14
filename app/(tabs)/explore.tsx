@@ -1,10 +1,9 @@
-import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, TextInput, Dimensions, FlatList } from 'react-native';
 import React, { useState, useMemo, useEffect } from 'react';
 import DownloadPage from '@/components/DownloadPage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import axios from 'axios';
-import MasonryList from '@react-native-seoul/masonry-list';
 
 const { width } = Dimensions.get('window');
 const numColumns = 2;
@@ -62,7 +61,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes, 
       />
       <View 
         style={{ 
-          // padding: 12,
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           position: 'absolute',
           bottom: 0,
@@ -74,25 +72,30 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes, 
           borderTopWidth: 1,
           borderColor: 'rgba(0,0,0,0.05)',
         }}
-      >
-        {/* <Text 
-          numberOfLines={1} 
-          style={{ 
-            fontSize: 14, 
-            fontWeight: '600',
-            flex: 1,
-            marginRight: 8,
-          }}
-        >
-          {title}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <FontAwesome name="heart" size={14} color="#FF4444" />
-          <Text style={{ marginLeft: 4, color: '#666', fontSize: 12 }}>{likes}</Text>
-        </View> */}
-      </View>
+      />
     </TouchableOpacity>
   );
+};
+
+// Custom hook to organize data into columns
+const useOrganizedData = (data: Post[]) => {
+  return useMemo(() => {
+    const columns: Post[][] = [[], []];
+    let leftHeight = 0;
+    let rightHeight = 0;
+
+    data.forEach((item) => {
+      if (leftHeight <= rightHeight) {
+        columns[0].push(item);
+        leftHeight += (item.height || 250) + gap;
+      } else {
+        columns[1].push(item);
+        rightHeight += (item.height || 250) + gap;
+      }
+    });
+
+    return columns;
+  }, [data]);
 };
 
 const Explore: React.FC = () => {
@@ -116,16 +119,15 @@ const Explore: React.FC = () => {
     return newArray;
   };
 
-   useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get<{ posts: Post[] }>("http://192.168.29.108:8000/post/getall");
+        const response = await axios.get<{ posts: Post[] }>("http://192.168.0.108:8000/post/getall");
         if (response.data?.posts) {
           const postsWithDimensions = response.data.posts.map(post => ({
             ...post,
             height: Math.floor(Math.random() * (320 - 200 + 1) + 200),
           }));
-          // Shuffle the array before setting it to state
           const randomizedPosts = shuffleArray(postsWithDimensions);
           setImages(randomizedPosts);
         }
@@ -151,16 +153,8 @@ const Explore: React.FC = () => {
     );
   }, [images, searchQuery]);
 
-  const renderItem = ({ item, i }: { item: Post; i: number }) => (
-    <ImageCard
-      key={item._id}
-      title={item.title}
-      imageUrl={item.imageUrl}
-      likes={item.likes}
-      height={item.height || 250}
-      onPress={() => handleCardPress(item.imageUrl, item.title, item.createdBy, item.createdAt, item._id)}
-    />
-  );
+  // Use the custom hook to organize data into columns
+  const columns = useOrganizedData(filteredImages);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -224,18 +218,46 @@ const Explore: React.FC = () => {
           </TouchableOpacity>
         )}
         
-        {/* Masonry Grid */}
-        <MasonryList
-          data={filteredImages}
-          keyExtractor={(item: Post) => item._id}
-          numColumns={2}
-          contentContainerStyle={{
+        {/* Custom Masonry Layout */}
+        <View 
+          style={{ 
+            flex: 1, 
             paddingHorizontal: gap,
             paddingTop: gap,
+            flexDirection: 'row',
           }}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-        />
+        >
+          {columns.map((column, columnIndex) => (
+            <View 
+              key={columnIndex} 
+              style={{ 
+                flex: 1,
+                marginLeft: columnIndex > 0 ? gap : 0,
+              }}
+            >
+              <FlatList
+                data={column}
+                keyExtractor={(item) => item._id}
+                renderItem={({ item }) => (
+                  <ImageCard
+                    title={item.title}
+                    imageUrl={item.imageUrl}
+                    likes={item.likes}
+                    height={item.height || 250}
+                    onPress={() => handleCardPress(
+                      item.imageUrl,
+                      item.title,
+                      item.createdBy,
+                      item.createdAt,
+                      item._id
+                    )}
+                  />
+                )}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+          ))}
+        </View>
         
         {/* Download Page */}
         {openPage && selectedImage && title && createdBy && postedDate && (
@@ -244,7 +266,7 @@ const Explore: React.FC = () => {
             createdBy={createdBy}
             postedDate={postedDate}
             imageUrl={selectedImage}
-            id={id}
+            id={id!}
           />
         )}
       </View>

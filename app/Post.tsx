@@ -78,7 +78,7 @@ export default function Post() {
       formData.append("genre", selectedGenre);
   
       const response = await axios.post(
-        "http://192.168.29.108:8000/post/create",
+        "http://192.168.0.108:8000/post/create",
         formData,
         {
           headers: {
