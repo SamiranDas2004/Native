@@ -1,75 +1,121 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Alert, Text } from "react-native";
+import { WebView } from "react-native-webview";
+import axios from "axios";
+import { useRouter } from "expo-router";
 
-const Pay = () => {
-  const [showWebView, setShowWebView] = useState(false);
+interface Money {
+  amounts: any;
+}
 
-  const handlePayment = async () => {
+const RazorpayScreen: React.FC<Money> = ({ amounts }) => {
+  const [amount, setAmount] = useState("2000");
+  const [orderID, setOrderID] = useState<string | null>(null);
+  const navigation = useRouter(); // React Navigation hook for navigation
+
+  useEffect(() => {
+    const createOrder = async () => {
+      try {
+        const response = await axios.post("http://192.168.0.108:8000/create-order", { amount });
+        console.log(response.data);
+        setOrderID(response.data.order_id);
+      } catch (error) {
+        console.error("Error creating order:", error);
+        Alert.alert("Error", "Failed to create order. Please try again.");
+      }
+    };
+
+    createOrder();
+  }, [amount]);
+
+  const handleWebViewMessage = (event: any) => {
     try {
-      // Fetch the order ID from your backend using Axios
-      const response = await axios.post('http://192.168.0.108:8000/create-order', {
-        amount: 5000, // Amount in INR, e.g., ₹50.00 (5000 paise)
-      });
+      const message = JSON.parse(event.nativeEvent.data);
 
-      console.log('Backend Response:', response.data);
-
-      // Ensure order_id is present
-      if (!response.data || !response.data.order_id) {
-        throw new Error('Order ID not received from the backend');
-      }
-
-      const { order_id } = response.data;
-
-      // Check if RazorpayCheckout is available
-      if (!RazorpayCheckout) {
-        throw new Error('RazorpayCheckout is not available');
-      }
-
-      // Proceed with Razorpay checkout
-      const options = {
-        description: 'Credits towards consultation',
-        image: 'https://i.imgur.com/3g7nmJC.jpg',
-        currency: 'INR',
-        key: 'rzp_test_t19IWWdmftaUKb', // Razorpay key ID
-        amount: 5000, // 5000 paise = ₹50
-        name: 'Acme Corp',
-        order_id, // Use the order ID received from the backend
-        prefill: {
-          email: 'gaurav.kumar@example.com',
-          contact: '9191919191',
-          name: 'Gaurav Kumar',
-        },
-        theme: { color: '#53a20e' },
-      };
-
-      // Check if the open method is available
-      if (RazorpayCheckout.open) {
-        RazorpayCheckout.open(options)
-          .then((data) => {
-            // Handle success
-            alert(`Payment Success: ${data.razorpay_payment_id}`);
-          })
-          .catch((error) => {
-            // Handle failure
-            console.error('Payment Failed:', error);
-            alert(`Payment Failed: ${error.code} | ${error.description}`);
-          });
-      } else {
-        throw new Error('RazorpayCheckout.open method is not available');
+      if (message.event === "payment.success") {
+        // Send payment success details to the backend
+        axios.post("http://192.168.0.108:8000/users/make-transfer", {
+          razorpay_order_id: message.data.razorpay_order_id,
+          razorpay_payment_id: message.data.razorpay_payment_id,
+          razorpay_signature: message.data.razorpay_signature,
+          artistId: "artist-id-here", // Replace with dynamic artistId
+          amount: amount, // Payment amount
+        })
+        .then((response) => {
+          Alert.alert("Success", "Payment successful and transferred to artist!");
+          navigation.navigate("/"); // Navigate to home after success
+        })
+        .catch((error) => {
+          console.error("Error processing payment transfer:", error);
+          Alert.alert("Error", "Failed to process payment. Please try again.");
+        });
+      } else if (message.event === "payment.cancelled") {
+        Alert.alert("Payment Cancelled", "You have cancelled the payment.", [
+          { text: "OK", onPress: () => navigation.navigate("/") },
+        ]);
       }
     } catch (error) {
-      console.error('Payment process failed', error);
-      alert('An error occurred while processing the payment. Please try again.');
+      console.error("Error handling WebView message:", error);
+      Alert.alert("Error", "An unexpected error occurred.");
     }
   };
 
+  const razorpayHTML = `
+    <html>
+      <head>
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+      </head>
+      <body>
+        <script>
+          var options = {
+            key: "rzp_test_t19IWWdmftaUKb",  // Your Razorpay key
+            amount: "${amount}", // Amount in smallest currency unit (paise)
+            currency: "INR",
+            name: "ACorp",
+            description: "Credits towards consultation",
+            order_id: "${orderID}",
+            prefill: {
+              name: "Yousuf",
+              email: "yousu@gmail.com",
+              contact: "3243242322"
+            },
+            theme: {
+              color: "#53a20e"
+            },
+            handler: function (response) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                event: "payment.success",
+                data: response
+              }));
+            },
+            modal: {
+              ondismiss: function() {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  event: "payment.cancelled"
+                }));
+              }
+            }
+          };
+          var rzp = new Razorpay(options);
+          rzp.open();
+        </script>
+      </body>
+    </html>
+  `;
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={handlePayment} style={styles.button}>
-        <Text style={styles.buttonText}>Pay Now</Text>
-      </TouchableOpacity>
+      {orderID ? (
+        <WebView
+          source={{ html: razorpayHTML }}
+          javaScriptEnabled
+          onMessage={handleWebViewMessage}
+        />
+      ) : (
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -77,20 +123,12 @@ const Pay = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  button: {
-    backgroundColor: '#F37254',
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
-export default Pay;
+export default RazorpayScreen;
