@@ -3,15 +3,31 @@ import { View, StyleSheet, Alert, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import axios from "axios";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Money {
   amounts: any;
+  postId:any;
 }
 
-const RazorpayScreen: React.FC<Money> = ({ amounts }) => {
-  const [amount, setAmount] = useState("2000");
+const RazorpayScreen: React.FC<Money> = ({ amounts,postId }) => {
+  const [amount, setAmount] = useState(amounts);
   const [orderID, setOrderID] = useState<string | null>(null);
   const navigation = useRouter(); // React Navigation hook for navigation
+  const [token, setToken]=useState(String)
+
+  useEffect(() => {
+    const getToken = async () => {
+      const storedToken = await AsyncStorage.getItem('userToken');
+      if (!storedToken) {
+        Alert.alert('Error', 'User is not authenticated.');
+        return;
+      }
+      setToken(storedToken);
+    };
+    getToken();
+  }, []);
+
 
   useEffect(() => {
     const createOrder = async () => {
@@ -28,23 +44,32 @@ const RazorpayScreen: React.FC<Money> = ({ amounts }) => {
     createOrder();
   }, [amount]);
 
-  const handleWebViewMessage = (event: any) => {
+  
+  const handleWebViewMessage = async(event: any) => {
+
+
     try {
       const message = JSON.parse(event.nativeEvent.data);
 
       if (message.event === "payment.success") {
         // Send payment success details to the backend
-        axios.post("http://192.168.0.108:8000/users/make-transfer", {
-          razorpay_order_id: message.data.razorpay_order_id,
-          razorpay_payment_id: message.data.razorpay_payment_id,
-          razorpay_signature: message.data.razorpay_signature,
-          artistId: "artist-id-here", // Replace with dynamic artistId
-          amount: amount, // Payment amount
-        })
+       await axios.post(
+          "http://192.168.0.108:8000/users/make-transfer",
+          {
+            razorpay_order_id: message.data.razorpay_order_id,
+            razorpay_payment_id: message.data.razorpay_payment_id,
+            razorpay_signature: message.data.razorpay_signature,
+            artistId: "artist-id-here", // Replace with the actual artist ID
+            amount: amount,
+            postId: postId,
+          },
+          { headers: { Authorization: `${token}` } }
+        )
         .then((response) => {
           Alert.alert("Success", "Payment successful and transferred to artist!");
-          navigation.navigate("/"); // Navigate to home after success
+          navigation.navigate("/"); 
         })
+
         .catch((error) => {
           console.error("Error processing payment transfer:", error);
           Alert.alert("Error", "Failed to process payment. Please try again.");

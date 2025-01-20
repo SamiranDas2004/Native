@@ -24,6 +24,7 @@ const AccountInfo = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  
   useEffect(() => {
     const getToken = async () => {
       const storedToken = await AsyncStorage.getItem('userToken');

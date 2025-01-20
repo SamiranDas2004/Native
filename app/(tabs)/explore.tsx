@@ -11,6 +11,7 @@ const gap = 12;
 const cardWidth = (width - gap * (numColumns + 1)) / numColumns;
 
 interface Post {
+  isPaid: boolean;  // Make sure it's a boolean
   likedBy: any;
   _id: string;
   title: string;
@@ -18,8 +19,10 @@ interface Post {
   createdBy: string;
   createdAt: string;
   likes: number;
+  amount:string;
   height?: number;
 }
+
 
 interface ImageCardProps {
   title: string;
@@ -29,7 +32,14 @@ interface ImageCardProps {
   height: number;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes, height }) => {
+const ImageCard: React.FC<ImageCardProps & { isPaid?: boolean }> = ({ 
+  title, 
+  imageUrl, 
+  onPress, 
+  likes, 
+  height, 
+  isPaid = false 
+}) => {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -59,23 +69,25 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, onPress, likes, 
         }}
         resizeMode="cover"
       />
-      <View 
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderTopWidth: 1,
-          borderColor: 'rgba(0,0,0,0.05)',
-        }}
-      />
+     
+      {isPaid && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            padding: 4,
+            borderRadius: 12,
+          }}
+        >
+            <FontAwesome name="star" size={18} color="#FFD700" />
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
+
 
 // Custom hook to organize data into columns
 const useOrganizedData = (data: Post[]) => {
@@ -107,6 +119,8 @@ const Explore: React.FC = () => {
   const [id, setId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [images, setImages] = useState<Post[]>([]);
+const [isPaid,setIsPaid]=useState(Boolean)
+const [amount,setAmount]=useState(String)
 
   const handleToggle = () => setOpenPage(!openPage);
 
@@ -138,14 +152,25 @@ const Explore: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleCardPress = (imageUrl: string, title: string, createdBy: string, postedDate: string, id: string) => {
+  const handleCardPress = (
+    imageUrl: string,
+    title: string,
+    createdBy: string,
+    isPaid: boolean,  // Ensure this is a boolean
+    postedDate: string,
+    id: string,
+    amount:string,
+  ) => {
     setSelectedImage(imageUrl);
     setTitle(title);
     setCreatedBy(createdBy);
     setPostedDate(postedDate);
     setOpenPage(true);
     setId(id);
+    setIsPaid(isPaid); 
+    setAmount(amount) // Use the `isPaid` boolean value
   };
+  
 
   const filteredImages = useMemo(() => {
     return images.filter(card =>
@@ -235,26 +260,31 @@ const Explore: React.FC = () => {
                 marginLeft: columnIndex > 0 ? gap : 0,
               }}
             >
-              <FlatList
-                data={column}
-                keyExtractor={(item) => item._id}
-                renderItem={({ item }) => (
-                  <ImageCard
-                    title={item.title}
-                    imageUrl={item.imageUrl}
-                    likes={item.likes}
-                    height={item.height || 250}
-                    onPress={() => handleCardPress(
-                      item.imageUrl,
-                      item.title,
-                      item.createdBy,
-                      item.createdAt,
-                      item._id
-                    )}
-                  />
-                )}
-                showsVerticalScrollIndicator={false}
-              />
+<FlatList
+  data={column}
+  keyExtractor={(item) => item._id}
+  renderItem={({ item }) => (
+    <ImageCard
+      title={item.title}
+      imageUrl={item.imageUrl}
+      likes={item.likes}
+      height={item.height || 250}
+      isPaid={item.isPaid}  // Ensure this is passed as a boolean
+      onPress={() => handleCardPress(
+        item.imageUrl,
+        item.title,
+        item.createdBy,
+        item.isPaid,  // Pass isPaid here
+        item.createdAt,
+        item._id,
+        item.amount
+      )}
+    />
+  )}
+  showsVerticalScrollIndicator={false}
+/>
+
+
             </View>
           ))}
         </View>
@@ -266,6 +296,9 @@ const Explore: React.FC = () => {
             createdBy={createdBy}
             postedDate={postedDate}
             imageUrl={selectedImage}
+            isPaid={isPaid}
+
+            amount={amount}
             id={id!}
           />
         )}
