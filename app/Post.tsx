@@ -29,18 +29,48 @@ export default function Post() {
   const [caption, setCaption] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const checkCameraPermissions = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Camera permission is required to take photos.");
+      return false;
+    }
+    return true;
+  };
+
+  const takePhoto = async () => {
+    const hasPermission = await checkCameraPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [2, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to take photo");
+      console.error(error);
+    }
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== "granted") {
-      alert("Sorry, we need camera roll permissions to make this work!");
+      Alert.alert("Permission needed", "Gallery permission is required to select photos.");
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [2,3],
+      aspect: [2, 3],
       quality: 1,
     });
 
@@ -58,8 +88,6 @@ export default function Post() {
         Alert.alert("Error", "User is not authenticated.");
         return;
       }
-  
-      console.log("Token:", token);
   
       setLoading(true);
       const formData = new FormData();
@@ -140,26 +168,40 @@ export default function Post() {
         multiline
       />
 
-      <TouchableOpacity style={styles.imageSelector} onPress={pickImage}>
-        {selectedImage ? (
-          <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
-        ) : (
-          <View style={styles.placeholderContainer}>
-            <Ionicons name="image-outline" size={40} color="#666" />
-            <Text style={styles.placeholderText}>Select Image</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <View style={styles.imageContainer}>
+        <TouchableOpacity style={styles.imageSelector} onPress={pickImage}>
+          {selectedImage ? (
+            <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Ionicons name="image-outline" size={40} color="#666" />
+              <Text style={styles.placeholderText}>Select from Gallery</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.imageActions}>
+          <TouchableOpacity 
+            style={styles.cameraButton} 
+            onPress={takePhoto}
+          >
+            <Ionicons name="camera" size={24} color="#fff" />
+            <Text style={styles.cameraButtonText}>Take Photo</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <TouchableOpacity
         style={[
           styles.postButton,
-          (!selectedImage || !selectedGenre) && styles.postButtonDisabled,
+          (!selectedImage || !selectedGenre || loading) && styles.postButtonDisabled,
         ]}
         onPress={handlePost}
-        disabled={!selectedImage || !selectedGenre}
+        disabled={!selectedImage || !selectedGenre || loading}
       >
-        <Text style={styles.postButtonText}>Post</Text>
+        <Text style={styles.postButtonText}>
+          {loading ? "Posting..." : "Post"}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -216,12 +258,15 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: "top",
   },
-  imageSelector: {
+  imageContainer: {
     margin: 16,
+  },
+  imageSelector: {
     height: 300,
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#f5f5f5",
+    marginBottom: 12,
   },
   selectedImage: {
     width: "100%",
@@ -236,6 +281,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 16,
     color: "#666",
+  },
+  imageActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  cameraButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  cameraButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
   },
   postButton: {
     backgroundColor: "#007AFF",

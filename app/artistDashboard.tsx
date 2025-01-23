@@ -70,7 +70,7 @@ const ArtistDashboard = () => {
       <Image source={{ uri: item.imageUrl }} style={styles.image} />
       <View style={styles.info}>
         <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+        <Text style={styles.amount}>{item.amount.toFixed(2)}</Text>
         <Text style={styles.amount}>Count: {item.count}</Text> {/* Wrap the count in a Text component */}
       </View>
     </View>
@@ -88,11 +88,14 @@ const ArtistDashboard = () => {
           </View>
           <View style={styles.earnings}>
             <Text style={styles.earningsTitle}>Total Earnings</Text>
-            <Text style={styles.earningsValue}>${totalEarnings?.toFixed(2) || 0}</Text>
+            <Text style={styles.earningsValue}>
+              {`${totalEarnings || 0}`}
+            </Text>
           </View>
         </View>
       );
     }
+    
 
     return renderPaidImage({ item });
   };
